@@ -304,7 +304,7 @@ func InitializeWorkspace(ctx context.Context, location string, remoteStorage sto
 			// in the very unlikely event that the workspace Pod did not mount (and thus create) the workspace directory, create it
 			err = os.Mkdir(location, 0755)
 			if os.IsExist(err) {
-				log.WithError(err).WithField("location", location).Debug("ran into non-atomic workspce location existence check")
+				log.WithError(err).WithField("location", location).Debug("ran into non-atomic workspace location existence check")
 				span.SetTag("exists", true)
 			} else if err != nil {
 				return src, xerrors.Errorf("cannot create workspace: %w", err)

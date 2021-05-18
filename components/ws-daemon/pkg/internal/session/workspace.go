@@ -27,9 +27,6 @@ const (
 	// AttrRemoteStorage is the name of the remote storage associated with a workspace.
 	// Expect this to be an instance of storage.RemoteStorage
 	AttrRemoteStorage = "remote-storage"
-	// AttrLiveBackup is the name of the live backup associated with a workspace.
-	// Expect this to be an instance of *safetynet.LiveBackup
-	AttrLiveBackup = "live-backup"
 
 	// AttrWorkspaceServer is the name of the workspace server cancel func.
 	// Expect this to be an instance of context.CancelFunc
@@ -57,9 +54,6 @@ type Workspace struct {
 	// CheckoutLocation is the path relative to location where the main Git working copy of this
 	// workspace resides. If this workspace has no Git working copy, this field is an empty string.
 	CheckoutLocation string `json:"checkoutLocation"`
-
-	// UpperdirLocation is the absolute ws-daemon container-relative path to the workspace container's upperdir.
-	UpperdirLocation string `json:"upperdir"`
 
 	CreatedAt           time.Time        `json:"createdAt"`
 	DoBackup            bool             `json:"doBackup"`
