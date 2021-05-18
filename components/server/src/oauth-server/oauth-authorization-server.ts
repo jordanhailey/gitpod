@@ -51,6 +51,10 @@ export function createAuthorizationServer(authCodeRepository: OAuthAuthCodeRepos
     scopeRepository,
     userRepository,
     jwtService,
+    {
+      // Be explicit, communicate intent. Default is true but let's not assume that
+      requiresPKCE: true, 
+    }
   );
 
   authorizationServer.enableGrantType("authorization_code", new DateInterval('1d'));
