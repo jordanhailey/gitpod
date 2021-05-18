@@ -269,6 +269,8 @@ components:
     - "server-proxy-apikey-secret.yaml"
     - "auth-providers-configmap.yaml"
     sessionSecret: Important!Really-Change-This-Key!
+    oauthServerJWTSecret: |
+      {{ (randAlphaNum 20) | quote }}
     resources:
       cpu: "200m"
     github:

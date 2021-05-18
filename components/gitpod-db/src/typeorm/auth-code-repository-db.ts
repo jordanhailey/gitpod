@@ -36,28 +36,21 @@ export class AuthCodeRepositoryDB implements OAuthAuthCodeRepository {
         authCodes = authCodes.filter(te => (new Date(te.expiresAt)).getTime() > Date.now());
         log.info(`getByIdentifier post: ${JSON.stringify(authCodes)}`);
         const authCode = authCodes.length > 0 ? authCodes[0] : undefined;
-        return new Promise<OAuthAuthCode>((resolve, reject) => {
-            if (authCode) {
-                log.info(`getByIdentifier found ${authCodeCode} ${JSON.stringify(authCode)}`);
-                resolve(authCode);
-            } else {
-                log.info(`getByIdentifier failed to find ${authCodeCode}`);
-                reject(`authentication code not found`);
-            }
-        });
+        if (!authCode) {
+            throw new Error(`authentication code not found`);
+        }
+        return authCode;
     }
     public issueAuthCode(client: OAuthClient, user: OAuthUser | undefined, scopes: OAuthScope[]): OAuthAuthCode {
         const code = crypto.randomBytes(30).toString('hex');
         log.info(`issueAuthCode: ${JSON.stringify(client)}, ${JSON.stringify(user)}, ${JSON.stringify(scopes)}, ${code}`);
+        // NOTE: caller (@jmondi/oauth2-server) is responsible for adding the remaining items, PKCE params, redirect URL, etc
         return {
             code: code,
             user,
             client,
-            redirectUri: "",
-            codeChallenge: undefined,
-            codeChallengeMethod: undefined,
             expiresAt: expiryInFuture.getEndDate(),
-            scopes: [],
+            scopes: scopes,
         };
     }
     public async persist(authCode: OAuthAuthCode): Promise<void> {

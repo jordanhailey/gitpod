@@ -27,7 +27,7 @@ const getWorkspaceResourceScope: OAuthScope = { name: "resource:" + ScopedResour
 const getWorkspaceInstanceResourceScope: OAuthScope = { name: "resource:" + ScopedResourceGuard.marshalResourceScope({ kind: "workspaceInstance", subjectID: "*", operations: ["get"] }) };
 
 // Clients
-export const localAppClientID = 'gplctl-1.0';
+const localAppClientID = 'gplctl-1.0';
 const localClient: OAuthClient = {
   id: localAppClientID,
   secret: `${localAppClientID}-secret`,

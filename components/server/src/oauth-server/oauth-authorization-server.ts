@@ -14,9 +14,6 @@ import {
 const clientRepository = inMemoryClientRepository;
 const scopeRepository = inMemoryScopeRepository;
 
-// TODO(rl) - get this from external secret
-const jwtService = new JwtService("secret secret secret");
-
 class GitpodAuthorizationServer extends AuthorizationServer {
   enableGrantType(grantType: GrantIdentifier, accessTokenTTL?: DateInterval): void {
     log.info(`enableGrantType: ${grantType}:${JSON.stringify(accessTokenTTL)}`)
@@ -43,14 +40,19 @@ class GitpodAuthorizationServer extends AuthorizationServer {
   }
 }
 
-export function createAuthorizationServer(authCodeRepository: OAuthAuthCodeRepository, userRepository: OAuthUserRepository, tokenRepository: OAuthTokenRepository): GitpodAuthorizationServer {
+export function createAuthorizationServer(authCodeRepository: OAuthAuthCodeRepository, userRepository: OAuthUserRepository, tokenRepository: OAuthTokenRepository, jwtSecret: string): GitpodAuthorizationServer {
+  log.info(`JWT:${jwtSecret}`)
   const authorizationServer = new GitpodAuthorizationServer(
     authCodeRepository,
     clientRepository,
     tokenRepository,
     scopeRepository,
     userRepository,
-    jwtService,
+    new JwtService(jwtSecret),
+    {
+      // Be explicit, communicate intent. Default is true but let's not assume that
+      requiresPKCE: true, 
+    }
   );
 
   authorizationServer.enableGrantType("authorization_code", new DateInterval('1d'));
