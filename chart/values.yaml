@@ -128,6 +128,7 @@ branding:
         url: https://www.gitpod.io/terms/
 workspaceScheduler: workspace-scheduler
 serverProxyApiKey: "fF7+aCPvF9Pa0AEjmoZ+yWVh6PqBjM5VEA0wyQs3FH4="
+oauthServerJWTSecret: "vUmr2mdLwW_.YFCWwFcR*VaUdE9eiA-CMAQuxxUoDPiQ6GVVJbBqBafp"
 previewFeatureFlags: []
 
 components:
@@ -269,6 +270,7 @@ components:
     - "server-proxy-apikey-secret.yaml"
     - "auth-providers-configmap.yaml"
     sessionSecret: Important!Really-Change-This-Key!
+    oauthServerJWTSecret: "Important!Set-by-deployment-yaml" 
     resources:
       cpu: "200m"
     github:

@@ -202,4 +202,5 @@ export class Env extends AbstractComponentEnv {
 
     readonly runDbDeleter: boolean = getEnvVar('RUN_DB_DELETER', 'false') === 'true';
 
+    readonly oauthServerJWTSecret = getEnvVar("OAUTH_SERVER_JWT_SECRET")
 }
