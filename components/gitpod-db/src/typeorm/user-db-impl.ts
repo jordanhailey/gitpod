@@ -399,10 +399,7 @@ export class TypeORMUserDBImpl implements UserDB {
     }
     async persist(accessToken: OAuthToken): Promise<void> {
         log.info(`persist access token ${JSON.stringify(accessToken)}`);
-        var scopes: string[] = [];
-        for (const scope of accessToken.scopes) {
-            scopes = scopes.concat(scope.name);
-        }
+        const scopes = accessToken.scopes.map((s) => s.name);
 
         // Does the token already exist?
         var dbToken: GitpodToken & { user: DBUser };

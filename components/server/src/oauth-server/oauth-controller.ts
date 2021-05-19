@@ -13,7 +13,6 @@ import * as express from 'express';
 import { inject, injectable } from "inversify";
 import { Env } from "../env";
 import { createAuthorizationServer } from './oauth-authorization-server';
-import { localAppClientID } from "./db";
 
 @injectable()
 export class OAuthController {
@@ -58,7 +57,11 @@ export class OAuthController {
                 }
 
                 const oauthClientsApproved = user?.additionalData?.oauthClientsApproved;
-                const clientID = localAppClientID;
+                const clientID = req.query.client_id; 
+                if (!clientID) {
+                    res.sendStatus(400);
+                    return;
+                }
                 if (!oauthClientsApproved || !oauthClientsApproved[clientID]) {
                     const client = await authorizationServer.getClientByIdentifier(clientID)
                     if (client) {
