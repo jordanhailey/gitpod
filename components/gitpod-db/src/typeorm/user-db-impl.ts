@@ -421,7 +421,7 @@ export class TypeORMUserDBImpl implements UserDB {
             }
             dbToken = {
                 tokenHash,
-                name: `local-app`,
+                name: accessToken.client.id,
                 type: GitpodTokenType.MACHINE_AUTH_TOKEN,
                 user: user as DBUser,
                 scopes: scopes,
