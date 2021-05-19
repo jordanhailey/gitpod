@@ -9,6 +9,7 @@
       { "path": "components/ee/ws-scheduler" },
       { "path": "components/gitpod-cli" },
       { "path": "components/image-builder" },
+      { "path": "components/image-builder-bob" },
       { "path": "components/licensor" },
       { "path": "components/registry-facade" },
       { "path": "components/service-waiter" },

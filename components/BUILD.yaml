@@ -19,6 +19,7 @@ packages:
       - components/ide/code:docker
       - components/ide/theia:docker
       - components/image-builder:docker
+      - components/image-builder-bob:docker
       - components/local-app:docker
       - components/proxy:docker
       - components/registry-facade:docker
@@ -46,6 +47,7 @@ packages:
       - components/ee/kedge:app
       - components/ee/ws-scheduler:app
       - components/image-builder:app
+      - components/image-builder-bob:app
       - components/registry-facade:app
       - components/server:app
       - components/service-waiter:app
