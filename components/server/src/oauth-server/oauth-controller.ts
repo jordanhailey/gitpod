@@ -12,13 +12,79 @@ import { OAuthException, OAuthRequest, OAuthResponse } from "@jmondi/oauth2-serv
 import * as express from 'express';
 import { inject, injectable } from "inversify";
 import { Env } from "../env";
-import { createAuthorizationServer } from './oauth-authorization-server';
+import { clientRepository, createAuthorizationServer } from './oauth-authorization-server';
 
 @injectable()
 export class OAuthController {
     @inject(Env) protected readonly env: Env;
     @inject(UserDB) protected readonly userDb: UserDB;
     @inject(AuthCodeRepositoryDB) protected readonly authCodeRepositoryDb: AuthCodeRepositoryDB;
+
+    private getValidUser = (req: express.Request, res: express.Response): User | null => {
+        if (!req.isAuthenticated() || !User.is(req.user)) {
+            const redirectTarget = encodeURIComponent(`${this.env.hostUrl}api${req.originalUrl}`);
+            const redirectTo = `${this.env.hostUrl}login?returnTo=${redirectTarget}`;
+            res.redirect(redirectTo)
+            return null;
+        }
+        const user = req.user as User;
+        if (!user) {
+            res.sendStatus(500);
+            return null;
+        }
+        if (user.blocked) {
+            res.sendStatus(403);
+            return null;
+        }
+        return user;
+    }
+
+    private hasApproval = async (user: User, clientID: string, req: express.Request, res: express.Response): Promise<boolean> => {
+            // Have they just authorized, or not, the local-app?
+            const wasApproved = req.query['approved'] || '';
+            log.info(`APPROVED?: ${wasApproved}`)
+            if (wasApproved === 'no') {
+                const additionalData = user?.additionalData;
+                if (additionalData && additionalData.oauthClientsApproved) {
+                    delete additionalData.oauthClientsApproved[clientID];
+                    await this.userDb.updateUserPartial(user);
+                }
+
+                // Let the local app know they rejected the approval
+                const rt = req.query.redirect_uri;
+                if (!rt || !rt.startsWith("http://localhost:")) {
+                    log.error(`/oauth/authorize: invalid returnTo URL: "${rt}"`)
+                    res.sendStatus(400);
+                    return false;
+                }
+                res.redirect(`${rt}/?approved=no`);
+                return false;
+            } else if (wasApproved == 'yes') {
+                const additionalData = user.additionalData = user.additionalData || {};
+                additionalData.oauthClientsApproved = {
+                    ...additionalData.oauthClientsApproved,
+                    [clientID]: new Date().toISOString()
+                }
+                await this.userDb.updateUserPartial(user);
+            } else {
+                const oauthClientsApproved = user?.additionalData?.oauthClientsApproved;
+                if (!oauthClientsApproved || !oauthClientsApproved[clientID]) {
+                    const client = await clientRepository.getByIdentifier(clientID)
+                    if (client) {
+                        const redirectTarget = encodeURIComponent(`${this.env.hostUrl}api${req.originalUrl}`);
+                        const redirectTo = `${this.env.hostUrl}oauth-approval?clientID=${client.id}&clientName=${client.name}&returnTo=${redirectTarget}`;
+                        log.info(`AUTH Redirecting to approval: ${redirectTo}`);
+                        res.redirect(redirectTo)
+                        return false;
+                    } else {
+                        log.error(`/oauth/authorize unknown client id: "${clientID}"`)
+                        res.sendStatus(400);
+                        return false;
+                    }
+                }
+            }
+            return true;
+    } 
 
     get oauthRouter(): express.Router {
         const router = express.Router();
@@ -29,56 +95,20 @@ export class OAuthController {
 
         const authorizationServer = createAuthorizationServer(this.authCodeRepositoryDb, this.userDb, this.userDb, this.env.oauthServerJWTSecret);
         router.get("/oauth/authorize", async (req: express.Request, res: express.Response) => {
-            log.info(`AUTHORIZE: ${JSON.stringify(req.query)}`);
-
-            if (!req.isAuthenticated() || !User.is(req.user)) {
-                const redirectTarget = encodeURIComponent(`${this.env.hostUrl}api${req.originalUrl}`);
-                const redirectTo = `${this.env.hostUrl}login?returnTo=${redirectTarget}`;
-                log.info(`AUTH Redirecting to login: ${redirectTo}`);
-                res.redirect(redirectTo)
-                return
-            }
-
-            const user = req.user as User;
-            if (user.blocked) {
-                res.sendStatus(403);
-                return;
-            }
-
-            // Have they authorized the local-app?
-            const wasApproved = req.query['approved'] || '';
-            log.info(`APPROVED?: ${wasApproved}`)
-            if (wasApproved === 'no') {
-                // Let the local app know they rejected the approval
-                const rt = req.query.redirect_uri;
-                if (!rt || !rt.startsWith("http://localhost:")) {
-                    log.error(`/oauth/authorize: invalid returnTo URL: "${rt}"`)
-                    res.sendStatus(400);
-                    return;
-                }
-                res.redirect(`${rt}/?approved=no`);
-                return;
-            }
-
-            const oauthClientsApproved = user?.additionalData?.oauthClientsApproved;
             const clientID = req.query.client_id;
             if (!clientID) {
                 res.sendStatus(400);
+                return false;
+            }
+
+            const user = this.getValidUser(req, res);
+            if (!user) {
                 return;
             }
-            if (!oauthClientsApproved || !oauthClientsApproved[clientID]) {
-                const client = await authorizationServer.getClientByIdentifier(clientID)
-                if (client) {
-                    const redirectTarget = encodeURIComponent(`${this.env.hostUrl}api${req.originalUrl}`);
-                    const redirectTo = `${this.env.hostUrl}oauth-approval?clientID=${client.id}&clientName=${client.name}&returnTo=${redirectTarget}`;
-                    log.info(`AUTH Redirecting to approval: ${redirectTo}`);
-                    res.redirect(redirectTo)
-                    return;
-                } else {
-                    log.error(`/oauth/authorize unknown client id: "${clientID}"`)
-                    res.sendStatus(400);
-                    return;
-                }
+
+            // Check for approval of this client
+            if (!this.hasApproval(user, clientID, req, res)) {
+                return;
             }
 
             const request = new OAuthRequest(req);
@@ -103,7 +133,6 @@ export class OAuthController {
         });
 
         router.post("/oauth/token", async (req: express.Request, res: express.Response) => {
-            log.info(`TOKEN: ${JSON.stringify(req.body)}`);
             const response = new OAuthResponse(res);
             try {
                 const oauthResponse = await authorizationServer.respondToAccessTokenRequest(req, response);
@@ -115,9 +144,6 @@ export class OAuthController {
         });
 
         function handleError(e: Error | undefined, res: express.Response) {
-            // TODO(rl) clean up error handling
-            log.info('handleError', e ? e.message + '\n' + e.stack : 'no error');
-
             if (e instanceof OAuthException) {
                 res.status(e.status);
                 res.send({

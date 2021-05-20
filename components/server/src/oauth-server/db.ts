@@ -4,7 +4,6 @@
  * See License-AGPL.txt in the project root for license information.
  */
 
-import { log } from '@gitpod/gitpod-protocol/lib/util/logging';
 import { OAuthClient, OAuthScope, OAuthToken } from "@jmondi/oauth2-server";
 import { ScopedResourceGuard } from "../auth/resource-access";
 
@@ -16,8 +15,6 @@ export interface InMemory {
   clients: { [id: string]: OAuthClient };
   tokens: { [id: string]: OAuthToken };
   scopes: { [id: string]: OAuthScope };
-
-  flush(): void;
 }
 
 // Scopes
@@ -48,11 +45,5 @@ export const inMemoryDatabase: InMemory = {
     [listenForWorkspaceInstanceUpdatesScope.name]: listenForWorkspaceInstanceUpdatesScope,
     [getWorkspaceResourceScope.name]: getWorkspaceResourceScope,
     [getWorkspaceInstanceResourceScope.name]: getWorkspaceInstanceResourceScope,
-  },
-  flush() {
-    log.info('flush')
-    this.clients = {};
-    this.tokens = {};
-    this.scopes = {};
   },
 };

@@ -4,36 +4,15 @@
  * See License-AGPL.txt in the project root for license information.
  */
 
-import { useContext } from "react";
-import { UserContext } from "./user-context";
-import { getGitpodService } from "./service/service";
 import gitpodIcon from './icons/gitpod.svg';
 import { getSafeURLRedirect } from "./provider-utils";
 
 export default function OAuthClientApproval() {
-    const { user, setUser } = useContext(UserContext);
     const params = new URLSearchParams(window.location.search);
-    const clientID = params.get("clientID") || "";
     const clientName = params.get("clientName") || "";
     const redirectTo = getSafeURLRedirect(params.get("redirectTo") || undefined) || "/";
 
     const updateClientApproval = async (isApproved: boolean) => {
-        if (!user) {
-            return;
-        }
-        const additionalData = user.additionalData = user.additionalData || {};
-        if (isApproved) {
-            additionalData.oauthClientsApproved = {
-                ...additionalData.oauthClientsApproved,
-                [clientID]: new Date().toISOString()
-            }
-        } else if (additionalData.oauthClientsApproved) {
-            delete additionalData.oauthClientsApproved[clientID];
-        }
-        await getGitpodService().server.updateLoggedInUser({
-            additionalData
-        });
-        setUser(user);
         window.location.replace(`${redirectTo}&approved=${isApproved ? 'yes' : 'no'}`);
     }
 
@@ -46,14 +25,14 @@ export default function OAuthClientApproval() {
                             <img src={gitpodIcon} className="h-16 mx-auto" />
                         </div>
                         <div className="mx-auto text-center pb-8 space-y-2">
-                            <h1 className="text-3xl">The client: "{clientName}" is requesting access</h1>
-                            <h4>Select 'Yes' to allow this client access to your workspace. 'No' to reject it.</h4>
+                            <h1 className="text-3xl">Authorize {clientName}</h1>
+                        <h4>You are about to authorize ${clientName} to access your Gitpod account including data for all workspaces.</h4>
                         </div>
                         <div className="flex flex-col space-y-3 items-center">
                             <button key={"button-yes"} className="primary" onClick={() => updateClientApproval(true)}>
-                                Yes
+                                Authorize
                             </button>
-                            <button className="secondary" onClick={() => updateClientApproval(false)}>No</button>
+                            <button className="secondary" onClick={() => updateClientApproval(false)}>Cancel</button>
                         </div>
                     </div>
                 </div>

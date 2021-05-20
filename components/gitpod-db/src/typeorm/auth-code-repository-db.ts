@@ -4,7 +4,6 @@
  * See License-AGPL.txt in the project root for license information.
  */
 
-import { log } from '@gitpod/gitpod-protocol/lib/util/logging';
 import { DateInterval, OAuthAuthCode, OAuthAuthCodeRepository, OAuthClient, OAuthScope, OAuthUser } from "@jmondi/oauth2-server";
 import * as crypto from 'crypto';
 import { inject, injectable } from "inversify";
@@ -29,12 +28,9 @@ export class AuthCodeRepositoryDB implements OAuthAuthCodeRepository {
     }
 
     public async getByIdentifier(authCodeCode: string): Promise<OAuthAuthCode> {
-        log.info(`getByIdentifier ${authCodeCode}`);
         const authCodeRepo = await this.getOauthAuthCodeRepo();
         let authCodes = await authCodeRepo.find({ code: authCodeCode });
-        log.info(`getByIdentifier pre: ${JSON.stringify(authCodes)}`);
         authCodes = authCodes.filter(te => (new Date(te.expiresAt)).getTime() > Date.now());
-        log.info(`getByIdentifier post: ${JSON.stringify(authCodes)}`);
         const authCode = authCodes.length > 0 ? authCodes[0] : undefined;
         if (!authCode) {
             throw new Error(`authentication code not found`);
@@ -43,7 +39,6 @@ export class AuthCodeRepositoryDB implements OAuthAuthCodeRepository {
     }
     public issueAuthCode(client: OAuthClient, user: OAuthUser | undefined, scopes: OAuthScope[]): OAuthAuthCode {
         const code = crypto.randomBytes(30).toString('hex');
-        log.info(`issueAuthCode: ${JSON.stringify(client)}, ${JSON.stringify(user)}, ${JSON.stringify(scopes)}, ${code}`);
         // NOTE: caller (@jmondi/oauth2-server) is responsible for adding the remaining items, PKCE params, redirect URL, etc
         return {
             code: code,
@@ -54,21 +49,16 @@ export class AuthCodeRepositoryDB implements OAuthAuthCodeRepository {
         };
     }
     public async persist(authCode: OAuthAuthCode): Promise<void> {
-        log.info(`persist auth ${JSON.stringify(authCode)}`);
         const authCodeRepo = await this.getOauthAuthCodeRepo();
         authCodeRepo.save(authCode);
     }
     public async isRevoked(authCodeCode: string): Promise<boolean> {
-        log.info(`isRevoked auth ${authCodeCode}`);
         const authCode = await this.getByIdentifier(authCodeCode);
-        log.info(`isRevoked authCode ${authCodeCode} ${JSON.stringify(authCode)}`);
         return Date.now() > authCode.expiresAt.getTime();
     }
     public async revoke(authCodeCode: string): Promise<void> {
-        log.info(`revoke auth ${authCodeCode}`);
         const authCode = await this.getByIdentifier(authCodeCode);
         if (authCode) {
-            log.info(`revoke auth ${authCodeCode} ${JSON.stringify(authCode)}`);
             // Set date to earliest timestamp that MySQL allows
             authCode.expiresAt = new Date(1000);
             return this.persist(authCode);
