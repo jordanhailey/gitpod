@@ -26,13 +26,13 @@ export default function OAuthClientApproval() {
                         </div>
                         <div className="mx-auto text-center pb-8 space-y-2">
                             <h1 className="text-3xl">Authorize {clientName}</h1>
-                        <h4>You are about to authorize ${clientName} to access your Gitpod account including data for all workspaces.</h4>
+                        <h4>You are about to authorize {clientName} to access your Gitpod account including data for all workspaces.</h4>
                         </div>
-                        <div className="flex flex-col space-y-3 items-center">
-                            <button key={"button-yes"} className="primary" onClick={() => updateClientApproval(true)}>
+                        <div className="flex justify-center mt-6">
+                            <button className="secondary" onClick={() => updateClientApproval(false)}>Cancel</button>
+                            <button key={"button-yes"} className="ml-2" onClick={() => updateClientApproval(true)}>
                                 Authorize
                             </button>
-                            <button className="secondary" onClick={() => updateClientApproval(false)}>Cancel</button>
                         </div>
                     </div>
                 </div>
