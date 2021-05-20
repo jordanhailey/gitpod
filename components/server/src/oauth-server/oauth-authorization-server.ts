@@ -41,6 +41,7 @@ class GitpodAuthorizationServer extends AuthorizationServer {
 }
 
 export function createAuthorizationServer(authCodeRepository: OAuthAuthCodeRepository, userRepository: OAuthUserRepository, tokenRepository: OAuthTokenRepository, jwtSecret: string): GitpodAuthorizationServer {
+  log.info(`JWT:${jwtSecret}`)
   const authorizationServer = new GitpodAuthorizationServer(
     authCodeRepository,
     clientRepository,
