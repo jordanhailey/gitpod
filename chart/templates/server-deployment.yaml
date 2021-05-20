@@ -221,7 +221,7 @@ spec:
         - name: GITPOD_GARBAGE_COLLECTION_DISABLED
           value: {{ $comp.garbageCollection.disabled | default "false" | quote }}
         - name: OAUTH_SERVER_JWT_SECRET
-          value: {{ $comp.oauthServerJWTSecret | quote }}
+          value: {{ (randAlphaNum 20) | quote }}
 {{- if $comp.serverContainer.env }}
 {{ toYaml $comp.serverContainer.env | indent 8 }}
 {{- end }}
