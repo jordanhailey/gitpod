@@ -27,6 +27,15 @@ if (process.env.NPM_AUTH_TOKEN) {
 }
 
 const pck = JSON.parse(fs.readFileSync(path.join(pckDir, 'package.json'), 'utf-8'));
+const newVersion = `${pck.version}-${qualifier}`;
+if (pck.dependencies) {
+    for (const dep of Object.keys(pck.dependencies)) {
+        if (dep.startsWith('@gitpod/')) {
+            pck.dependencies[dep] = newVersion;
+        }
+    }
+}
+fs.writeFileSync(path.join(pckDir, 'package.json'), JSON.stringify(pck, undefined, 2), "utf-8");
 
 const tag = qualifier.substr(0, qualifier.lastIndexOf('.'));
 
@@ -36,7 +45,7 @@ child_process.execSync([
     pckDir,
     "publish",
     "--new-version",
-    `${pck.version}-${qualifier}`,
+    newVersion,
     "--tag",
     tag,
     "--access",

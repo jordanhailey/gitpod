@@ -9,22 +9,23 @@ import (
 
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 
 	gitpod "github.com/gitpod-io/gitpod/gitpod-protocol"
+	appapi "github.com/gitpod-io/gitpod/local-app/api"
 	"github.com/gitpod-io/local-app/pkg/auth"
 	"github.com/gitpod-io/local-app/pkg/bastion"
 	"github.com/gorilla/handlers"
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 	"github.com/zalando/go-keyring"
+	"google.golang.org/grpc"
 )
 
 var (
@@ -140,6 +141,8 @@ func run(origin, sshConfig string, allowCORSFromPort bool) error {
 	}
 
 	b = bastion.New(client, cb)
+	grpcServer := grpc.NewServer()
+	appapi.RegisterLocalAppServer(grpcServer, bastion.NewLocalAppService(b))
 	go http.ListenAndServe("localhost:5000", handlers.CORS(
 		handlers.AllowedOriginValidator(func(origin string) bool {
 			url, err := url.Parse(origin)
@@ -150,25 +153,7 @@ func run(origin, sshConfig string, allowCORSFromPort bool) error {
 			matches := hostRegex.Match([]byte(url.Host))
 			return matches
 		}),
-	)(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		segs := strings.Split(r.URL.Path, "/")
-		if len(segs) < 3 {
-			http.Error(rw, "invalid URL Path", http.StatusBadRequest)
-			return
-		}
-		worksapceID := segs[1]
-		port, err := strconv.Atoi(segs[2])
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusBadRequest)
-			return
-		}
-		localAddr, err := b.GetTunnelLocalAddr(worksapceID, uint32(port))
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusNotFound)
-			return
-		}
-		fmt.Fprintf(rw, localAddr)
-	})))
+	)(grpcweb.WrapServer(grpcServer)))
 	return b.Run()
 }
 

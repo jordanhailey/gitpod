@@ -6,6 +6,7 @@ package bastion
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -19,9 +20,11 @@ import (
 	"time"
 
 	gitpod "github.com/gitpod-io/gitpod/gitpod-protocol"
+	app "github.com/gitpod-io/gitpod/local-app/api"
 	supervisor "github.com/gitpod-io/gitpod/supervisor/api"
 	"github.com/google/uuid"
 	"github.com/kevinburke/ssh_config"
+	"github.com/prometheus/common/log"
 	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
@@ -29,13 +32,33 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var (
+	// ErrClosed when the port management is stopped
+	ErrClosed = errors.New("closed")
+	// ErrTooManySubscriptions when max allowed subscriptions exceed
+	ErrTooManySubscriptions = errors.New("too many subscriptions")
+)
+
+// Subscription is a Subscription to status updates
+type Subscription struct {
+	workspaceID string
+	updates     chan []*app.TunnelStatus
+	Close       func() error
+}
+
+func (s *Subscription) Updates() <-chan []*app.TunnelStatus {
+	return s.updates
+}
+
 type TunnelClient struct {
 	ID   string // we cannot use conn session ID, since proto fails to serialize it
 	Conn ssh.Conn
 }
 
 type TunnelListener struct {
+	RemotePort uint32
 	LocalAddr  string
+	LocalPort  uint32
 	Visibility supervisor.TunnelVisiblity
 	Ctx        context.Context
 	Cancel     func()
@@ -138,6 +161,9 @@ type Bastion struct {
 
 	ctx  context.Context
 	stop context.CancelFunc
+
+	subscriptionsMu sync.RWMutex
+	subscriptions   map[*Subscription]struct{}
 }
 
 func (b *Bastion) Run() error {
@@ -145,6 +171,21 @@ func (b *Bastion) Run() error {
 	if err != nil {
 		return err
 	}
+
+	defer func() {
+		// We copy the subscriptions to a list prior to closing them, to prevent a data race
+		// between the map iteration and entry removal when closing the subscription.
+		b.subscriptionsMu.Lock()
+		subs := make([]*Subscription, 0, len(b.subscriptions))
+		for s := range b.subscriptions {
+			subs = append(subs, s)
+		}
+		b.subscriptionsMu.Unlock()
+
+		for _, s := range subs {
+			s.Close()
+		}
+	}()
 
 	go func() {
 		for u := range b.updates {
@@ -432,7 +473,9 @@ func (b *Bastion) establishTunnel(ctx context.Context, ws *Workspace, logprefix 
 		}
 	}()
 	return &TunnelListener{
+		RemotePort: uint32(remotePort),
 		LocalAddr:  netListener.Addr().String(),
+		LocalPort:  uint32(localPort),
 		Visibility: visibility,
 		Ctx:        listenerCtx,
 		Cancel:     cancel,
@@ -492,28 +535,6 @@ func installSSHAuthorizedKey(ws *Workspace, key string) error {
 	return nil
 }
 
-func (b *Bastion) GetTunnelLocalAddr(workspaceID string, port uint32) (string, error) {
-	ws, ok := b.getWorkspace(workspaceID)
-	if !ok {
-		return "", fmt.Errorf("workspace not running")
-	}
-
-	ws.tunnelListenersMu.RLock()
-	defer ws.tunnelListenersMu.RUnlock()
-	listener, ok := ws.tunnelListeners[port]
-	if !ok {
-		return "", fmt.Errorf("port not tunneled")
-	}
-	return listener.LocalAddr, nil
-}
-
-func (b *Bastion) getWorkspace(workspaceID string) (*Workspace, bool) {
-	b.workspacesMu.RLock()
-	defer b.workspacesMu.RUnlock()
-	ws, ok := b.workspaces[workspaceID]
-	return ws, ok
-}
-
 func (b *Bastion) tunnelPorts(ws *Workspace) {
 	defer func() {
 		ws.portsTunneled = false
@@ -543,6 +564,7 @@ func (b *Bastion) doTunnelPorts(ws *Workspace) error {
 	if err != nil {
 		return err
 	}
+	defer b.notify(ws)
 	defer func() {
 		ws.tunnelListenersMu.Lock()
 		defer ws.tunnelListenersMu.Unlock()
@@ -597,5 +619,90 @@ func (b *Bastion) doTunnelPorts(ws *Workspace) error {
 			}
 		}
 		ws.tunnelListenersMu.Unlock()
+		b.notify(ws)
 	}
+}
+
+func (b *Bastion) notify(ws *Workspace) {
+	b.subscriptionsMu.RLock()
+	defer b.subscriptionsMu.RUnlock()
+	var subs []*Subscription
+	for sub := range b.subscriptions {
+		if sub.workspaceID == ws.WorkspaceID {
+			subs = append(subs, sub)
+		}
+	}
+	if len(subs) <= 0 {
+		return
+	}
+	status := ws.Status()
+	for _, sub := range subs {
+		select {
+		case sub.updates <- status:
+		case <-time.After(5 * time.Second):
+			log.Error("ports subscription droped out")
+			sub.Close()
+		}
+	}
+}
+
+func (b *Bastion) Status(workspaceID string) []*app.TunnelStatus {
+	ws, ok := b.getWorkspace(workspaceID)
+	if !ok {
+		return nil
+	}
+	return ws.Status()
+}
+
+func (ws *Workspace) Status() []*app.TunnelStatus {
+	ws.tunnelListenersMu.RLock()
+	defer ws.tunnelListenersMu.RUnlock()
+	res := make([]*app.TunnelStatus, 0, len(ws.tunnelListeners))
+	for _, listener := range ws.tunnelListeners {
+		res = append(res, &app.TunnelStatus{
+			RemotePort: listener.RemotePort,
+			LocalPort:  listener.LocalPort,
+			Visibility: listener.Visibility,
+		})
+	}
+	return res
+}
+
+func (b *Bastion) getWorkspace(workspaceID string) (*Workspace, bool) {
+	b.workspacesMu.RLock()
+	defer b.workspacesMu.RUnlock()
+	ws, ok := b.workspaces[workspaceID]
+	return ws, ok
+}
+
+func (b *Bastion) Subscribe(workspaceID string) (*Subscription, error) {
+	b.subscriptionsMu.Lock()
+	defer b.subscriptionsMu.Unlock()
+
+	if b.ctx.Err() != nil {
+		return nil, ErrClosed
+	}
+
+	if len(b.subscriptions) > 10 {
+		return nil, ErrTooManySubscriptions
+	}
+
+	sub := &Subscription{updates: make(chan []*app.TunnelStatus, 5), workspaceID: workspaceID}
+	var once sync.Once
+	sub.Close = func() error {
+		b.subscriptionsMu.Lock()
+		defer b.subscriptionsMu.Unlock()
+
+		once.Do(func() {
+			close(sub.updates)
+		})
+		delete(b.subscriptions, sub)
+
+		return nil
+	}
+	b.subscriptions[sub] = struct{}{}
+
+	// makes sure that no updates can happen between clients receiving an initial status and subscribing
+	sub.updates <- b.Status(workspaceID)
+	return sub, nil
 }
