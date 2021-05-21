@@ -18,7 +18,7 @@ export interface InMemory {
 }
 
 // Scopes
-const getWorkspaceScope: OAuthScope = { name: "function:getWorkspace" };
+const getWorkspacesScope: OAuthScope = { name: "function:getWorkspaces" };
 const listenForWorkspaceInstanceUpdatesScope: OAuthScope = { name: "function:listenForWorkspaceInstanceUpdates" };
 const getWorkspaceResourceScope: OAuthScope = { name: "resource:" + ScopedResourceGuard.marshalResourceScope({ kind: "workspace", subjectID: "*", operations: ["get"] }) };
 const getWorkspaceInstanceResourceScope: OAuthScope = { name: "resource:" + ScopedResourceGuard.marshalResourceScope({ kind: "workspaceInstance", subjectID: "*", operations: ["get"] }) };
@@ -32,7 +32,7 @@ const localClient: OAuthClient = {
   // TODO(rl) - allow port range/external specification
   redirectUris: ['http://localhost:64110'],
   allowedGrants: ['authorization_code'],
-  scopes: [getWorkspaceScope, listenForWorkspaceInstanceUpdatesScope, getWorkspaceResourceScope, getWorkspaceInstanceResourceScope],
+  scopes: [getWorkspacesScope, listenForWorkspaceInstanceUpdatesScope, getWorkspaceResourceScope, getWorkspaceInstanceResourceScope],
 }
 
 export const inMemoryDatabase: InMemory = {
@@ -41,7 +41,7 @@ export const inMemoryDatabase: InMemory = {
   },
   tokens: {},
   scopes: {
-    [getWorkspaceScope.name]: getWorkspaceScope,
+    [getWorkspacesScope.name]: getWorkspacesScope,
     [listenForWorkspaceInstanceUpdatesScope.name]: listenForWorkspaceInstanceUpdatesScope,
     [getWorkspaceResourceScope.name]: getWorkspaceResourceScope,
     [getWorkspaceInstanceResourceScope.name]: getWorkspaceInstanceResourceScope,
