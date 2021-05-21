@@ -48,3 +48,51 @@ data:
       }
     }
 {{- end }}
+{{- if not .Values.components.kedge.disabled }}
+  vhost.kedge: |
+    https://kedge-([a-z0-9]+).{$GITPOD_DOMAIN} {
+      import enable_log
+      import remove_server_header
+      import ssl_configuration
+      import debug_headers
+
+      gitpod.cors_origin {
+        base_domain {$GITPOD_DOMAIN}
+      }
+
+
+      reverse_proxy kedge.${KUBE_NAMESPACE}.{$KUBE_DOMAIN}:{{.Values.components.kedge.ports.http.servicePort}} {
+        import upstream_headers
+        import upstream_connection
+
+        flush_interval -1
+      }
+
+    }
+{{- end }}
+{{- if not .Values.components.paymentEndpoint.disabled }}
+  vhost.kedge: |
+    https://payment-endpoint.{$GITPOD_DOMAIN} {
+      import enable_log
+      import remove_server_header
+      import ssl_configuration
+      import debug_headers
+
+      gitpod.cors_origin {
+        base_domain {$GITPOD_DOMAIN}
+      }
+
+
+      reverse_proxy payment-endpoint.${KUBE_NAMESPACE}.{$KUBE_DOMAIN}:3002 {
+        import upstream_headers
+        import upstream_connection
+
+        flush_interval -1
+      }
+
+      handle_errors {
+        respond "Internal Server Error" 500
+      }
+
+    }
+{{- end }}
