@@ -4,7 +4,7 @@
  * See License-AGPL.txt in the project root for license information.
  */
 
-import { WorkspaceDB } from '@gitpod/gitpod-db/lib/workspace-db';
+import { WorkspaceDB } from '@gitpod/gitpod-db/lib/src/workspace-db';
 import { Queue } from '@gitpod/gitpod-protocol';
 import { log } from '@gitpod/gitpod-protocol/lib/util/logging';
 import { WorkspaceCluster, WorkspaceClusterDB, WorkspaceClusterState, TLSConfig, AdmissionConstraint, AdmissionConstraintHasRole, WorkspaceClusterWoTLS } from '@gitpod/gitpod-protocol/lib/workspace-cluster';

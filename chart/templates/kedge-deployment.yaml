@@ -12,14 +12,14 @@ metadata:
     app: {{ template "gitpod.fullname" . }}
     component: kedge
     kind: deployment
-    stage: {{ .Values.gitpod.installation.stage }}
+    stage: {{ .Values.installation.stage }}
 spec:
   selector:
     matchLabels:
       app: {{ template "gitpod.fullname" . }}
       component: kedge
       kind: pod
-      stage: {{ .Values.gitpod.installation.stage }}
+      stage: {{ .Values.installation.stage }}
   replicas: {{ $comp.replicas | default 1 }}
   strategy:
     type: RollingUpdate
@@ -33,7 +33,7 @@ spec:
         app: {{ template "gitpod.fullname" . }}
         component: kedge
         kind: pod
-        stage: {{ .Values.gitpod.installation.stage }}
+        stage: {{ .Values.installation.stage }}
     spec:
 {{ include "gitpod.pod.affinity" $this | indent 6 }}
       serviceAccountName: kedge
@@ -61,5 +61,5 @@ spec:
       - name: kedge-config
         secret:
           secretName: kedge-config
-{{ toYaml .Values.gitpod.defaults | indent 6 }}
+{{ toYaml .Values.defaults | indent 6 }}
 {{ end }}

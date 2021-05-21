@@ -12,7 +12,7 @@ metadata:
     app: {{ template "gitpod.fullname" . }}
     component: kedge
     kind: role
-    stage: {{ .Values.gitpod.installation.stage }}
+    stage: {{ .Values.installation.stage }}
 rules:
 - apiGroups:
   - ''

@@ -3,6 +3,7 @@ packages:
     type: yarn
     srcs:
       - "src/**/*.ts"
+      - "ee/**/*.ts"
       - package.json
       - mocha.opts
     deps:
@@ -16,6 +17,8 @@ packages:
   - name: migrations
     type: yarn
     srcs:
+      - "ee/src/typeorm/migration/**/*.ts"
+      - "ee/src/typeorm/entity/*.ts"
       - "src/typeorm/migration/**/*.ts"
       - "src/typeorm/entity/*.ts"
       - "src/typeorm/ormconfig.ts"
@@ -37,6 +40,7 @@ packages:
     type: yarn
     srcs:
       - "src/**/*.ts"
+      - "ee/**/*.ts"
       - package.json
       - mocha.opts
     deps:
