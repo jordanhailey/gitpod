@@ -10,9 +10,15 @@ import { getSafeURLRedirect } from "./provider-utils";
 export default function OAuthClientApproval() {
     const params = new URLSearchParams(window.location.search);
     const clientName = params.get("clientName") || "";
-    const redirectTo = getSafeURLRedirect(params.get("redirectTo") || undefined) || "/";
-
+    let redirectToParam = params.get("redirectTo") || undefined;
+    if (redirectToParam) {
+        redirectToParam = decodeURIComponent(redirectToParam);
+    }
+    const redirectTo = getSafeURLRedirect(redirectToParam) || "/";
     const updateClientApproval = async (isApproved: boolean) => {
+        if (redirectTo === "/") {
+            window.location.replace(redirectTo);
+        }
         window.location.replace(`${redirectTo}&approved=${isApproved ? 'yes' : 'no'}`);
     }
 
