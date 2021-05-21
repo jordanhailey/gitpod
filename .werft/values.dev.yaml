@@ -8,11 +8,7 @@ hostname: staging.gitpod-dev.com
 imagePrefix: eu.gcr.io/gitpod-core-dev/build/
 certificatesSecret:
   secretName: proxy-config-certificates
-  fullChainName: tls.crt
-  chainName: tls.crt
-  keyName: tls.key
 version: not-set
-forceHTTPS: false
 imagePullPolicy: Always
 affinity:
   nodeAffinity:
@@ -135,8 +131,9 @@ components:
     - mountPath: /mnt/sync-tmp
       name: gcloud-tmp
     userNamespaces:
+      fsShift: fuse
       shiftfsModuleLoader:
-        enabled: true
+        enabled: false
       seccompProfileInstaller:
         enabled: true
 

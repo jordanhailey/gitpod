@@ -218,9 +218,10 @@ var errNotConnected = errors.New("not connected to Gitpod server")
 
 // ConnectToServerOpts configures the server connection
 type ConnectToServerOpts struct {
-	Context context.Context
-	Token   string
-	Log     *logrus.Entry
+	Context             context.Context
+	Token               string
+	Log                 *logrus.Entry
+	ReconnectionHandler func()
 }
 
 // ConnectToServer establishes a new websocket connection to the server
@@ -248,6 +249,7 @@ func ConnectToServer(endpoint string, opts ConnectToServerOpts) (*APIoverJSONRPC
 		reqHeader.Set("Authorization", "Bearer "+opts.Token)
 	}
 	ws := NewReconnectingWebsocket(endpoint, reqHeader, opts.Log)
+	ws.ReconnectionHandler = opts.ReconnectionHandler
 	go ws.Dial()
 
 	var res APIoverJSONRPC
@@ -1699,7 +1701,7 @@ type Workspace struct {
 type WorkspaceConfig struct {
 	CheckoutLocation string `json:"checkoutLocation,omitempty"`
 
-	// Set of automatically infered feature flags. That's not something the user can set, but
+	// Set of automatically inferred feature flags. That's not something the user can set, but
 	// that is set by gitpod at workspace creation time.
 	FeatureFlags []string          `json:"_featureFlags,omitempty"`
 	GitConfig    map[string]string `json:"gitConfig,omitempty"`
@@ -1710,7 +1712,7 @@ type WorkspaceConfig struct {
 	// Where the config object originates from.
 	//
 	// repo - from the repository
-	// definitly-gp - from github.com/gitpod-io/definitely-gp
+	// definitely-gp - from github.com/gitpod-io/definitely-gp
 	// derived - computed based on analyzing the repository
 	// default - our static catch-all default config
 	Origin            string        `json:"_origin,omitempty"`
