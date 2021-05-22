@@ -14,6 +14,7 @@ import (
 	"net/url"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/sirupsen/logrus"
 	"github.com/skratchdot/open-golang/open"
 	keyring "github.com/zalando/go-keyring"
 	"golang.org/x/oauth2"
@@ -58,13 +59,28 @@ const html = `
 	</body>
 </html>`
 
+// NOTE: the port ranges all need to be valid redirect URI's in the backend
+const STARTING_PORT_NUM = 63110
+const ENDING_PORT_NUM = 63120
+
 // Login walks through the login flow for obtaining a Gitpod token
 func Login(ctx context.Context, opts LoginOpts) (token string, err error) {
-	rl, err := net.Listen("tcp", "localhost:64110")
-	if err != nil {
-		return "", err
+	// Try a range of ports
+	var rl net.Listener
+	port := STARTING_PORT_NUM
+	for port < ENDING_PORT_NUM {
+		rl, err = net.Listen("tcp4", fmt.Sprintf("127.0.0.1:%d", port))
+		if err != nil {
+			logrus.Infof("Could not open port:%d got error:%s\nTrying next port\n", port, err)
+			port += 1
+			continue
+		}
+		defer rl.Close()
+		break
 	}
-	defer rl.Close()
+	if rl == nil {
+		return "", fmt.Errorf("could not open any valid port in range %d - %d", STARTING_PORT_NUM, ENDING_PORT_NUM)
+	}
 
 	var (
 		errChan   = make(chan error, 1)
@@ -77,7 +93,7 @@ func Login(ctx context.Context, opts LoginOpts) (token string, err error) {
 	}
 
 	returnServer := &http.Server{
-		Addr:    "localhost:0",
+		Addr:    fmt.Sprintf("127.0.0.1:%d", port),
 		Handler: http.HandlerFunc(returnHandler),
 	}
 	go func() {
@@ -115,7 +131,7 @@ func Login(ctx context.Context, opts LoginOpts) (token string, err error) {
 		},
 	}
 	responseTypeParam := oauth2.SetAuthURLParam("response_type", "code")
-	redirectURIParam := oauth2.SetAuthURLParam("redirect_uri", fmt.Sprintf("http://localhost:%d", rl.Addr().(*net.TCPAddr).Port))
+	redirectURIParam := oauth2.SetAuthURLParam("redirect_uri", fmt.Sprintf("http://127.0.0.1:%d", rl.Addr().(*net.TCPAddr).Port))
 	codeChallengeMethodParam := oauth2.SetAuthURLParam("code_challenge_method", "S256")
 	codeVerifier := PKCEVerifier(84)
 	codeChallengeParam := oauth2.SetAuthURLParam("code_challenge", PKCEChallenge(codeVerifier))
